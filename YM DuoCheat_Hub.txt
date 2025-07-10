@@ -1,0 +1,229 @@
+// ==UserScript==
+// @name         YM DuoCheat_Hub
+// @namespace    http://tampermonkey.net/
+// @version      v1.0BETA
+// @description  XP + Gems farming tool for Duolingo, with multi-language UI and floating Discord chat
+// @author       ´꒳`ⓎⒶⓂⒾⓈⒸⓇⒾⓅⓉ×͜×
+// @match        https://www.duolingo.com/*
+// @grant        none
+// @run-at       document-idle
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=duolingo.com
+// ==/UserScript==
+ 
+(function () {
+    'use strict';
+ 
+    const SERVER_ID = '1377275722342858973';
+    const WIDGET_URL = `https://discord.com/widget?id=${SERVER_ID}&theme=dark`;
+    const VERSION = 'v1.0BETA';
+    let lang = 'en';
+ 
+    const LANG = {
+       en: {
+            header: '🌈 DUO HUB TOOL', farmLabel: '🔧 What do you want to farm?', start: '🚀 Start farm',
+            done: '🚜 Farm finished', copied: 'Token copied!', placeholder: 'Enter target amount',
+            settings: 'Settings', support: 'Support', profile: 'Profile', discord: 'Discord',
+            version: 'Version', madeby: 'Made by'
+        }
+    };
+    const t = k => LANG[lang][k];
+ 
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes rainbowBorder {
+            0%,100%{border-color:red}14%{border-color:orange}28%{border-color:yellow}
+            42%{border-color:green}57%{border-color:blue}71%{border-color:indigo}85%{border-color:violet}
+        }
+        .duo-rainbow-panel {
+            position:fixed;bottom:100px;left:20px;background:#f0f9ff;color:#222;padding:16px;border:3px solid;
+            border-radius:16px;z-index:9999;font-size:14px;box-shadow:0 4px 10px rgba(0,0,0,.2);width:280px;
+            display:flex;flex-direction:column;gap:12px;transition:opacity 0.4s ease, transform 0.4s ease;
+            font-family:'Segoe UI',sans-serif;animation:rainbowBorder 5s infinite linear;
+        }
+        .duo-panel-hidden{opacity:0!important;transform:translateY(30px)!important;pointer-events:none!important;}
+        .duo-toggle-btn {
+            position:fixed;bottom:20px;right:20px;width:64px;height:64px;background:#58cc02;color:#fff;
+            border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;cursor:pointer;
+            z-index:10000;border:5px solid;animation:rainbowBorder 3s infinite linear;
+            box-shadow:0 6px 16px rgba(0,0,0,.35);
+        }
+        .duo-toggle-version {
+            position:fixed;bottom:75px;right:22px;background:rgba(0,0,0,.5);color:#fff;font-size:10px;
+            padding:2px 6px;border-radius:6px;z-index:10000;font-family:monospace;
+        }
+        .duo-discord-btn {
+            position:fixed;bottom:100px;right:20px;width:60px;height:60px;background:#5865F2;color:#fff;
+            border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer;
+            z-index:10000;box-shadow:0 6px 16px rgba(0,0,0,.35);
+        }
+        .duo-notification-btn {
+            position:fixed;bottom:170px;right:20px;width:60px;height:60px;background:#ffb703;color:#000;
+            border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer;
+            z-index:10000;box-shadow:0 6px 16px rgba(0,0,0,.35);
+        }
+        .duo-discord-chat {
+            position:fixed;bottom:180px;right:20px;width:350px;height:500px;background:#fff;border:3px solid #5865F2;
+            border-radius:10px;overflow:hidden;z-index:10000;display:none;box-shadow:0 6px 16px rgba(0,0,0,.4);
+        }
+    `;
+    document.head.appendChild(style);
+ 
+    const toggleBtn = Object.assign(document.createElement('div'), {className:'duo-toggle-btn', textContent:'⚙️'});
+    const versionTag = Object.assign(document.createElement('div'), {className:'duo-toggle-version',textContent:VERSION});
+    const panel = Object.assign(document.createElement('div'), {className:'duo-rainbow-panel'});
+    document.body.append(toggleBtn, versionTag, panel);
+ 
+    const discordBtn = Object.assign(document.createElement('div'), {
+        className: 'duo-discord-btn',
+        innerHTML: '💬'
+    });
+    const discordChat = document.createElement('div');
+    discordChat.className = 'duo-discord-chat';
+ 
+    const iframe = document.createElement('iframe');
+    iframe.src = WIDGET_URL;
+    iframe.style.border = 'none';
+    iframe.width = '100%';
+    iframe.height = '100%';
+    iframe.setAttribute('allowtransparency', 'true');
+    iframe.setAttribute('frameborder', '0');
+    iframe.setAttribute('sandbox', 'allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts');
+    discordChat.appendChild(iframe);
+ 
+    const notificationBtn = Object.assign(document.createElement('div'), {
+        className: 'duo-notification-btn',
+        innerHTML: '🔔'
+    });
+    notificationBtn.onclick = () => {
+        alert('📢  Notice from admin: Currently, XP and GEMS farming is working. STREAK farming is under development! Thank you! (ADMIN: YAMISCRIPT_DEV)');
+        navigator.vibrate?.(40);
+    };
+ 
+    let chatVisible = false;
+    discordBtn.onclick = () => {
+        chatVisible = !chatVisible;
+        discordChat.style.display = chatVisible ? 'block' : 'none';
+        navigator.vibrate?.(40);
+    };
+ 
+    document.body.append(discordBtn, notificationBtn, discordChat);
+ 
+    const header = Object.assign(document.createElement('div'), {
+        textContent: t('header'),
+        style: 'font-weight:bold;font-size:17px;text-align:center;color:#0a4d2f'
+    });
+ 
+    const createBtn = (label, emoji, onClick) => {
+        const b = document.createElement('button');
+        b.innerHTML = `${emoji} ${label}`;
+        Object.assign(b.style,{
+            padding:'10px',background:'#fff',color:'#1c1c1c',border:'2px solid #58CC02',borderRadius:'10px',
+            fontSize:'14px',cursor:'pointer',fontWeight:'600',width:'100%'
+        });
+        b.onclick = onClick;
+        return b;
+    };
+ 
+    const supportBtn = createBtn(t('support'), '❤️', () => alert('support@duofarm.dev'));
+    const profileBtn = createBtn(t('profile'), '👤', () => window.open('https://guns.lol/yamiscript_dev','_blank'));
+    const discordBtn2 = createBtn(t('discord'), '💬', () => window.open('https://discord.gg/F3uWQNpt','_blank'));
+    const settingsBtn = createBtn(t('settings'),'⚙️', () => alert('⚙️Feature under development...'));
+ 
+    const btnGrid = document.createElement('div');
+    Object.assign(btnGrid.style,{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'});
+    btnGrid.append(supportBtn, profileBtn, discordBtn2, settingsBtn);
+ 
+    const farmDiv = document.createElement('div');
+    farmDiv.innerHTML = `
+        <div id="farmLabel">${t('farmLabel')}</div>
+        <select id="farmType" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;margin:6px 0;">
+            <option value="xp">XP</option><option value="gems">Gems</option><option value="streak">Streak</option>
+        </select>
+        <input id="targetValue" type="number" placeholder="${t('placeholder')}"
+               style="width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;margin-bottom:6px;">
+        <button id="startFarm" style="background:#58cc02;color:#fff;width:100%;padding:8px;border:none;border-radius:8px;cursor:pointer;">
+            ${t('start')}
+        </button>
+        <div id="progressText" style="margin-top:6px;font-size:13px;color:#333;">❌Chưa hoạt động</div>
+        <div style="height:10px;background:#ccc;border-radius:6px;overflow:hidden;">
+            <div id="progressBar" style="height:100%;width:0%;background:#58cc02;transition:width .3s;"></div>
+        </div>
+    `;
+ 
+    const footer = document.createElement('div');
+    footer.innerHTML = `
+        <div style="font-size:12px;color:#444;">${t('version')}: ${VERSION}</div>
+        <div style="font-size:11px;color:#888;margin-top:2px;">${t('madeby')} <b>YAMISCRIPT_DEV</b></div>
+    `;
+    footer.style.textAlign = 'center';
+ 
+    panel.append(header, btnGrid, farmDiv, footer);
+ 
+    let visible = true;
+    toggleBtn.onclick = () => {
+        visible = !visible;
+        panel.classList.toggle('duo-panel-hidden', !visible);
+        navigator.vibrate?.(50);
+    };
+ 
+    const getCookie = n => document.cookie.match(new RegExp(`${n}=([^;]+)`))?.[1] || null;
+    const getJwtToken = () => getCookie('jwt_token');
+    const decodeJwt = t => JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+ 
+    const farmGems = async target => {
+        try {
+            const userId = getCookie('logged_out_uuid');
+            const jwt = getJwtToken();
+            if (!userId || !jwt) return alert('⚠️  Unable to get token!');
+            for (let i = 0; i < target; i++) {
+                await fetch(`https://www.duolingo.com/2017-06-30/users/${userId}/rewards/CAPSTONE_COMPLETION-xxxx-2-GEMS`,{
+                    method:'PATCH',
+                    headers:{accept:'application/json',authorization:`Bearer ${jwt}`,'content-type':'application/json'},
+                    body:JSON.stringify({amount:0,consumed:true,skillId:'xxx',type:'mission'})
+                });
+                document.getElementById('progressText').textContent = `💎 Đã farm ${i+1}/${target} gems`;
+                document.getElementById('progressBar').style.width = `${((i+1)/target)*100}%`;
+                await new Promise(r=>setTimeout(r,0));
+            }
+            document.getElementById('progressText').textContent = '✅Gems farming completed!';
+        } catch(e){ console.error('Lỗi farm gems:',e); }
+    };
+ 
+    const farmXp = async (headers, sessionPayload, updatePayload, targetXP) => {
+        let currentXP = 0;
+        while (currentXP < targetXP) {
+            const s = await fetch('https://www.duolingo.com/2017-06-30/sessions',
+                                  {method:'POST',headers,body:JSON.stringify(sessionPayload)}).then(r=>r.json());
+            const u = await fetch(`https://www.duolingo.com/2017-06-30/sessions/${s.id}`,
+                                  {method:'PUT',headers,body:JSON.stringify({...s,...updatePayload})}).then(r=>r.json());
+            currentXP += u.xpGain || 10;
+            document.getElementById('progressText').textContent = `🧠 Đã farm ${currentXP}/${targetXP} XP`;
+            document.getElementById('progressBar').style.width = `${(currentXP/targetXP)*100}%`;
+            await new Promise(r=>setTimeout(r,0));
+        }
+        document.getElementById('progressText').textContent = t('done');
+    };
+ 
+    const duoxpanel = async xp => {
+        const jwt = getJwtToken(); if (!jwt) return alert('⚠️ Not logged in!');
+        const sub = decodeJwt(jwt).sub;
+        const headers = {'Authorization':`Bearer ${jwt}`,'Content-Type':'application/json'};
+        const info = await fetch(`https://www.duolingo.com/2017-06-30/users/${sub}?fields=username,fromLanguage,learningLanguage`,{headers}).then(r=>r.json());
+ 
+        const sessionPayload = {challengeTypes:['definition','translate','assist'],fromLanguage:info.fromLanguage,learningLanguage:info.learningLanguage,type:'GLOBAL_PRACTICE'};
+        const updatePayload = {heartsLeft:0,startTime:Math.floor(Date.now()/1000),endTime:Math.floor(Date.now()/1000)+100,failed:false,maxInLessonStreak:10,shouldLearnThings:true};
+ 
+        await farmXp(headers, sessionPayload, updatePayload, xp);
+    };
+ 
+    document.getElementById('startFarm').onclick = async () => {
+        const type = document.getElementById('farmType').value;
+        const amount = parseInt(document.getElementById('targetValue').value||'0');
+        if (!amount || amount<=0) return alert('❌ Invalid amount!');
+        document.getElementById('progressText').textContent = '⏳ Đang farm...';
+        document.getElementById('progressBar').style.width = '0%';
+        if (type === 'xp') await duoxpanel(amount);
+        else if (type === 'gems') await farmGems(amount);
+        else alert('🚧 This feature is not supported yet.');
+    };
+})();
